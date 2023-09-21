@@ -3,23 +3,26 @@
     <!-- タイトル -->
     <header class="header">
       <h1>todos</h1>
-      <input class="new-todo" autofocus autocomplete="off" placeholder="終わらせたいタスクを入力" v-model="newTodo" @keyup.enter="addTodo"/>
+      <input class="new-todo" autofocus autocomplete="off" placeholder="終わらせたいタスクを入力" v-model="newTodo"
+        @keyup.enter="addTodo" />
     </header>
 
     <main class="main" v-show="todos.length" v-cloak>
       <!-- タイトル -->
       <label for="toggle-all">
-        <input id="toggle-all" class="toggle-all" type="checkbox" v-model="allDone"/>
+        <input id="toggle-all" class="toggle-all" type="checkbox" v-model="allDone" />
       </label>
       <!-- タスク一覧 -->
       <ul class="todo-list">
-        <li class="todo" v-for="todo in todos" :key="todo.id" :class="{ completed: todo.completed, editing: todo == editedTodo }">
+        <li class="todo" v-for="todo in filteredTodos" :key="todo.id"
+          :class="{ completed: todo.completed, editing: todo == editedTodo }">
           <div class="view">
             <input class="toggle" type="checkbox" v-model="todo.completed" />
             <label @dblclick="editTodo(todo)">{{ todo.title }}</label>
             <button class="destroy" @click="removeTodo(todo)"></button>
           </div>
-          <input class="edit" type="text" v-model="todo.title" v-todo-focus="todo == editedTodo" @blur="doneEdit(todo)" @keyup.enter="doneEdit(todo)" @keyup.esc="cancelEdit(todo)"/>
+          <input class="edit" type="text" v-model="todo.title" v-todo-focus="todo == editedTodo" @blur="doneEdit(todo)"
+            @keyup.enter="doneEdit(todo)" @keyup.esc="cancelEdit(todo)" />
         </li>
       </ul>
     </main>
@@ -28,13 +31,26 @@
       <!--
         TODO件数、フィルタボタン配置予定個所
       -->
+      <span class="todo-count">残り {{ remaining }} 個</span>
+      <ul class="filters">
+        <li>
+          <a href="#/all" :class="{ selected: currentFilter === 'all' }" @click="setCurrentFilter('all')">すべて</a>
+        </li>
+        <li>
+          <a href="#/active" :class="{ selected: currentFilter === 'active' }" @click="setCurrentFilter('active')">実施中</a>
+        </li>
+        <li>
+          <a href="#/completed" :class="{ selected: currentFilter === 'completed' }"
+            @click="setCurrentFilter('completed')">完了済</a>
+        </li>
+      </ul>
       <button class="clear-completed" @click="removeCompleted" v-show="todos.length > remaining">完了済みを削除する</button>
     </footer>
   </section>
 </template>
 
 <script>
-// import todoStorage from '@/storage.js';
+import todoStorage from '@/storage.js';
 import filters from '@/filters.js';
 import extern from '@/extern.js';
 
@@ -53,13 +69,19 @@ export default {
       newTodo: "",
       editedTodo: null,
       visibility: extern.visibility,
+      currentFilter: 'all', // 現在のフィルタリング条件
     };
   },
 
   watch: {
+    todos: {
+      handler: 'saveTodos', // データが変更されたらsaveTodosメソッドを呼び出す
+      deep: true // todos内部の変更も監視
+    }
   },
 
   computed: {
+
     remaining() {
       return filters.active(this.todos).length;
     },
@@ -68,16 +90,44 @@ export default {
         return this.remaining === 0;
       },
       set(value) {
-        this.todos.forEach(function(todo) {
+        this.todos.forEach(function (todo) {
           todo.completed = value;
         });
+        // データ保存
+        todoStorage.save(this.todos);
       }
+    },
+    filteredTodos() {
+      if (this.currentFilter === 'all') {
+        return filters.all(this.todos);
+      } else if (this.currentFilter === 'active') {
+        return filters.active(this.todos);
+      } else if (this.currentFilter === 'completed') {
+        return filters.completed(this.todos);
+      }
+
+      return [];
     }
+
   },
 
+  mounted() {
+    //ローカルストレージからデータを読み込む
+    this.todos = todoStorage.fetch();
+  },
   // データ処理用メソッド
   // ※ここではDOM操作しないでください。
   methods: {
+    // データを保存するメソッド
+    saveTodos() {
+      todoStorage.save(this.todos);
+    },
+
+    setCurrentFilter(filter) {
+      // ボタンクリック時にフィルタリング条件を設定
+      this.currentFilter = filter;
+    },
+
     addTodo() {
       var value = this.newTodo && this.newTodo.trim();
       if (!value) {
@@ -89,11 +139,18 @@ export default {
         completed: false
       });
       this.newTodo = "";
+
+      // 新しいタスクを追加した後にデータ保存
+      this.saveTodos();
+
+
+
     },
 
     removeTodo(todo) {
       this.todos = this.todos.filter((t) => t.id !== todo.id);
     },
+
 
     editTodo(todo) {
       this.beforeEditCache = todo.title;
@@ -118,7 +175,15 @@ export default {
 
     removeCompleted() {
       this.todos = filters.active(this.todos);
-    }
+      // データ保存
+      todoStorage.save(this.todos);
+    },
+
+    // フィルターを設定するメソッド
+    setFilter(filter) {
+      this.visibility = filter;
+    },
+
   },
 
   // a custom directive to wait for the DOM to be updated
@@ -132,4 +197,5 @@ export default {
     }
   }
 }
+
 </script>

@@ -21,7 +21,8 @@
             <label @dblclick="editTodo(todo)">{{ todo.title }}</label>
             <button class="destroy" @click="removeTodo(todo)"></button>
           </div>
-          <input class="edit" type="text" v-model="todo.title" v-todo-focus="todo == editedTodo" @blur="doneEdit(todo)"
+          <input class="edit" type="text" v-model="todo.title" 
+            v-todo-focus="todo == editedTodo" @blur="doneEdit(todo)"
             @keyup.enter="doneEdit(todo)" @keyup.esc="cancelEdit(todo)" />
         </li>
       </ul>
@@ -34,14 +35,13 @@
       <span class="todo-count">残り {{ remaining }} 個</span>
       <ul class="filters">
         <li>
-          <a href="#/all" :class="{ selected: currentFilter === 'all' }" @click="setCurrentFilter('all')">すべて</a>
+          <a href="#/all">すべて</a>
         </li>
         <li>
-          <a href="#/active" :class="{ selected: currentFilter === 'active' }" @click="setCurrentFilter('active')">実施中</a>
+          <a href="#/active" >実施中</a>
         </li>
         <li>
-          <a href="#/completed" :class="{ selected: currentFilter === 'completed' }"
-            @click="setCurrentFilter('completed')">完了済</a>
+          <a href="#/completed">完了済</a>
         </li>
       </ul>
       <button class="clear-completed" @click="removeCompleted" v-show="todos.length > remaining">完了済みを削除する</button>
@@ -69,7 +69,6 @@ export default {
       newTodo: "",
       editedTodo: null,
       visibility: extern.visibility,
-      currentFilter: 'all', // 現在のフィルタリング条件
     };
   },
 
@@ -81,6 +80,16 @@ export default {
   },
 
   computed: {
+
+    filteredTodos() {
+      if (this.visibility.value === 'all') {
+        return filters.all(this.todos);
+      } else if (this.visibility.value === 'active') {
+        return filters.active(this.todos);
+      } else (this.visibility.value === 'completed') {
+        return filters.completed(this.todos);
+      }
+    },
 
     remaining() {
       return filters.active(this.todos).length;
@@ -97,17 +106,7 @@ export default {
         todoStorage.save(this.todos);
       }
     },
-    filteredTodos() {
-      if (this.currentFilter === 'all') {
-        return filters.all(this.todos);
-      } else if (this.currentFilter === 'active') {
-        return filters.active(this.todos);
-      } else if (this.currentFilter === 'completed') {
-        return filters.completed(this.todos);
-      }
-
-      return [];
-    }
+    
 
   },
 
@@ -121,11 +120,6 @@ export default {
     // データを保存するメソッド
     saveTodos() {
       todoStorage.save(this.todos);
-    },
-
-    setCurrentFilter(filter) {
-      // ボタンクリック時にフィルタリング条件を設定
-      this.currentFilter = filter;
     },
 
     addTodo() {
@@ -142,9 +136,6 @@ export default {
 
       // 新しいタスクを追加した後にデータ保存
       this.saveTodos();
-
-
-
     },
 
     removeTodo(todo) {
@@ -179,10 +170,7 @@ export default {
       todoStorage.save(this.todos);
     },
 
-    // フィルターを設定するメソッド
-    setFilter(filter) {
-      this.visibility = filter;
-    },
+    
 
   },
 

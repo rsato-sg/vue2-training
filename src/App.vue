@@ -12,17 +12,21 @@
       <label for="toggle-all">
         <input id="toggle-all" class="toggle-all" type="checkbox" v-model="allDone" />
       </label>
+      <label>
+        <input id="toggle-all-today" class="toggle-all-today" type="checkbox" v-model="allDoneToday" />
+      </label>
       <!-- タスク一覧 -->
       <ul class="todo-list">
         <li class="todo" v-for="todo in filteredTodos" :key="todo.id"
           :class="{ completed: todo.completed, editing: todo == editedTodo }">
           <div class="view">
-            <input class="toggle" type="checkbox" v-model="todo.completed" />
+            <input class="toggle" type="checkbox" v-model="todo.completed" @change="toggleCompleted(todo)" />
             <label @dblclick="editTodo(todo)">{{ todo.title }}</label>
             <button class="destroy" @click="removeTodo(todo)"></button>
+            <input class="toggle-today" type="checkbox" v-model="todo.today" v-show="!todo.completed" />
+
           </div>
-          <input class="edit" type="text" v-model="todo.title" 
-            v-todo-focus="todo == editedTodo" @blur="doneEdit(todo)"
+          <input class="edit" type="text" v-model="todo.title" v-todo-focus="todo == editedTodo" @blur="doneEdit(todo)"
             @keyup.enter="doneEdit(todo)" @keyup.esc="cancelEdit(todo)" />
         </li>
       </ul>
@@ -38,10 +42,13 @@
           <a href="#/all">すべて</a>
         </li>
         <li>
-          <a href="#/active" >実施中</a>
+          <a href="#/active">実施中</a>
         </li>
         <li>
           <a href="#/completed">完了済</a>
+        </li>
+        <li class="today">
+          <a href="#/today">今日中</a>
         </li>
       </ul>
       <button class="clear-completed" @click="removeCompleted" v-show="todos.length > remaining">完了済みを削除する</button>
@@ -73,21 +80,27 @@ export default {
   },
 
   watch: {
+    //変更された時に起動
     todos: {
-      handler: 'saveTodos', // データが変更されたらsaveTodosメソッドを呼び出す
+      handler() {
+        this.saveTodos();
+      },
       deep: true // todos内部の変更も監視
     }
   },
 
   computed: {
-
+    //表示している内容に変化があるとき
     filteredTodos() {
       if (this.visibility.value === 'all') {
         return filters.all(this.todos);
       } else if (this.visibility.value === 'active') {
         return filters.active(this.todos);
-      } else (this.visibility.value === 'completed') {
+      } else if (this.visibility.value === 'completed') {
         return filters.completed(this.todos);
+      }
+      else {
+        return filters.today(this.todos);
       }
     },
 
@@ -106,7 +119,21 @@ export default {
         todoStorage.save(this.todos);
       }
     },
-    
+    todaining() {
+      return filters.today(this.todos).length;
+    },
+    allDoneToday: {
+      get() {
+        return this.todaining !== 0;
+      },
+      set(value) {
+        this.todos.forEach(function (todo) {
+          todo.today = value;
+        });
+        todoStorage.save(this.todos);
+      }
+    }
+
 
   },
 
@@ -117,6 +144,14 @@ export default {
   // データ処理用メソッド
   // ※ここではDOM操作しないでください。
   methods: {
+    toggleCompleted(todo) {
+      if (!todo.completed) {
+        todo.today = false; // タスクが未完了の場合に今日中のチェックボックスを外す
+        // todo.today = false; // 完了済みにすると今日中のチェックボックスを外す
+      }
+      this.saveTodos(); // データ保存
+    },
+
     // データを保存するメソッド
     saveTodos() {
       todoStorage.save(this.todos);
@@ -145,6 +180,7 @@ export default {
 
     editTodo(todo) {
       this.beforeEditCache = todo.title;
+
       this.editedTodo = todo;
     },
 
@@ -170,7 +206,7 @@ export default {
       todoStorage.save(this.todos);
     },
 
-    
+
 
   },
 

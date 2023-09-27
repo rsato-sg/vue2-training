@@ -9,12 +9,11 @@
 
     <main class="main" v-show="todos.length" v-cloak>
       <!-- タイトル -->
-      <label for="toggle-all">
-        <input id="toggle-all" class="toggle-all" type="checkbox" v-model="allDone" />
-      </label>
-      <label>
-        <input id="toggle-all-today" class="toggle-all-today" type="checkbox" v-model="allDoneToday" />
-      </label>
+
+      <input id="toggle-all" class="toggle-all" type="checkbox" v-model="allDone" />
+      <label for="toggle-all"></label>
+
+
       <!-- タスク一覧 -->
       <ul class="todo-list">
         <li class="todo" v-for="todo in filteredTodos" :key="todo.id"
@@ -24,7 +23,6 @@
             <label @dblclick="editTodo(todo)">{{ todo.title }}</label>
             <button class="destroy" @click="removeTodo(todo)"></button>
             <input class="toggle-today" type="checkbox" v-model="todo.today" v-show="!todo.completed" />
-
           </div>
           <input class="edit" type="text" v-model="todo.title" v-todo-focus="todo == editedTodo" @blur="doneEdit(todo)"
             @keyup.enter="doneEdit(todo)" @keyup.esc="cancelEdit(todo)" />
@@ -36,7 +34,10 @@
       <!--
         TODO件数、フィルタボタン配置予定個所
       -->
-      <span class="todo-count">残り {{ remaining }} 個</span>
+      <div class="count">
+        <span class="todo-count">未完了 {{ remaining }} 個</span>
+        <span class="todo-count">本日中 {{ todaining }} 個</span>
+      </div>
       <ul class="filters">
         <li>
           <a href="#/all">すべて</a>
@@ -52,6 +53,10 @@
         </li>
       </ul>
       <button class="clear-completed" @click="removeCompleted" v-show="todos.length > remaining">完了済みを削除する</button>
+      <p class="today-button">
+        <button v-show="showTodayDeleteButton">今日中を削除する</button>
+        <button class="clear-completed" @click="hysteresis">rireki</button>
+      </p>
     </footer>
   </section>
 </template>
@@ -60,6 +65,7 @@
 import todoStorage from '@/storage.js';
 import filters from '@/filters.js';
 import extern from '@/extern.js';
+
 
 let uniq_id = 0;
 
@@ -76,6 +82,7 @@ export default {
       newTodo: "",
       editedTodo: null,
       visibility: extern.visibility,
+      deletedTodos: [],
     };
   },
 
@@ -99,8 +106,11 @@ export default {
       } else if (this.visibility.value === 'completed') {
         return filters.completed(this.todos);
       }
-      else {
+      else if (this.visibility.value === 'today') {
         return filters.today(this.todos);
+      }
+      else {
+        return this.deletedTodo(this.todos);
       }
     },
 
@@ -122,18 +132,10 @@ export default {
     todaining() {
       return filters.today(this.todos).length;
     },
-    allDoneToday: {
-      get() {
-        return this.todaining !== 0;
-      },
-      set(value) {
-        this.todos.forEach(function (todo) {
-          todo.today = value;
-        });
-        todoStorage.save(this.todos);
-      }
-    }
 
+    showTodayDeleteButton() {
+      return this.todaining > 0;
+    },
 
   },
 
@@ -165,7 +167,8 @@ export default {
       this.todos.push({
         id: uniq_id++,
         title: value,
-        completed: false
+        completed: false,
+        today: false
       });
       this.newTodo = "";
 
@@ -201,15 +204,16 @@ export default {
     },
 
     removeCompleted() {
+      this.deletedTodos = filters.completed(this.todos);
+      this.deletedTodos = [...this.deletedTodos, ...filters.completed(this.todos)];
       this.todos = filters.active(this.todos);
       // データ保存
       todoStorage.save(this.todos);
     },
-
-
-
+    hysteresis() {
+      this.visibility.value = 'hysteresis'
+    },
   },
-
   // a custom directive to wait for the DOM to be updated
   // before focusing on the input field.
   // http://v2.vuejs.org/guide/custom-directive.html

@@ -14,7 +14,7 @@ const filters = {
   },
   today(todos) {
     return todos.filter((todo) => !todo.completed && todo.today);
-  }
+  },
 };
 
 export default filters;

@@ -40,22 +40,24 @@
       </div>
       <ul class="filters">
         <li>
-          <a href="#/all">すべて</a>
+          <a href="#" @click="visibility.value = 'all'">すべて</a>
         </li>
         <li>
-          <a href="#/active">実施中</a>
+          <a href="#" @click="visibility.value = 'active'">実施中</a>
         </li>
         <li>
-          <a href="#/completed">完了済</a>
+          <a href="#" @click="visibility.value = 'completed'">完了済</a>
         </li>
         <li class="today">
-          <a href="#/today">今日中</a>
+          <a href="#" @click="visibility.value = 'today'">今日中</a>
         </li>
       </ul>
       <button class="clear-completed" @click="removeCompleted" v-show="todos.length > remaining">完了済みを削除する</button>
       <p class="today-button">
-        <button v-show="showTodayDeleteButton">今日中を削除する</button>
-        <button class="clear-completed" @click="hysteresis">rireki</button>
+        <button class="clear-completed" @click="removeToday" v-show="todaining > 0">今日中を削除する</button>
+      </p>
+      <p>
+        <button class="clear-completed" @click="hysteresis">履歴</button>
       </p>
     </footer>
   </section>
@@ -110,7 +112,7 @@ export default {
         return filters.today(this.todos);
       }
       else {
-        return this.deletedTodo(this.todos);
+        return this.deletedTodos;
       }
     },
 
@@ -133,9 +135,9 @@ export default {
       return filters.today(this.todos).length;
     },
 
-    showTodayDeleteButton() {
-      return this.todaining > 0;
-    },
+    /* showTodayDeleteButton() {
+       return this.todaining > 0;
+     },*/
 
   },
 
@@ -157,6 +159,8 @@ export default {
     // データを保存するメソッド
     saveTodos() {
       todoStorage.save(this.todos);
+      todoStorage.deletedSave(this.deletedTodos);
+
     },
 
     addTodo() {
@@ -204,11 +208,20 @@ export default {
     },
 
     removeCompleted() {
-      this.deletedTodos = filters.completed(this.todos);
+
       this.deletedTodos = [...this.deletedTodos, ...filters.completed(this.todos)];
       this.todos = filters.active(this.todos);
+      this.saveTodos(); // 削除後にすべてのタスクを保存
+      // 削除されたタスクを保存
+      todoStorage.deletedSave(this.deletedTodos);
+
+    },
+    removeToday() {
+      this.todos = this.todos.filter(todo => !todo.today);
       // データ保存
       todoStorage.save(this.todos);
+
+
     },
     hysteresis() {
       this.visibility.value = 'hysteresis'
